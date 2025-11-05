@@ -25,4 +25,6 @@ for coordinate in searcher:
 	dict_hyperparams = coordinate.get_pdict()
     score = train_model(dict_hyperparams)
     coordinate.update(score)
+
+dict_hyperparams_optimal, score = searcher.get_optimal_pdict()
 ```
