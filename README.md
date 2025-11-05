@@ -1,6 +1,13 @@
-## gridsearch:
+## `gridsearch`:
 
 a simple-to-use grid search implementation in Python, designed to easily integrate into a model training loop
+
+## Installation:
+
+`git clone https://github.com/atmosalex/gridsearch.git`
+`cd gridsearch`
+`python -m build`
+`pip install .`
 
 ## Usage:
 
