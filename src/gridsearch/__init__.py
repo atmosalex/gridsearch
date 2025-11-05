@@ -3,6 +3,17 @@ import numpy as np
 import sys
 import copy
 
+def load_default_hyperparameters(filein_hp):
+    with open(filein_hp) as fi:
+        jsoncontent = json.load(fi)
+        hpidx0 = jsoncontent['hyperparameter_idx0']
+        hpvals = jsoncontent['hyperparameter_optimisation']
+
+    hpvals0 = {}
+    for k, v in hpidx0.items():
+        hpvals0[k] = hpvals[k][v]
+    return hpvals0
+
 class HPoptimizer:
     def __init__(self, filein_hp, step_carefully = False):
         self.filein_hp = filein_hp
@@ -12,7 +23,7 @@ class HPoptimizer:
         #define hyperparameters:
         with open(self.filein_hp) as fi:
             jsoncontent = json.load(fi)
-            hpidx0 = jsoncontent['hyperparameter_idx0']
+            self.hpidx0 = jsoncontent['hyperparameter_idx0']
             self.hp_allow = jsoncontent['hyperparameter_allowmove']
             hpopt = jsoncontent['hyperparameter_optimisation']
 
@@ -22,12 +33,12 @@ class HPoptimizer:
         self.keys = []
         for key in hpopt.keys():
             if self.hp_allow[key]:
-                self.current_idx[key] = hpidx0[key]
+                self.current_idx[key] = self.hpidx0[key]
                 self.parameterspacebykey[key] = hpopt[key]
                 self.dims.append(len(hpopt[key]))
             else: # restrict the hyperparameter to its current idx0 value:
                 self.current_idx[key] = 0
-                self.parameterspacebykey[key] = [hpopt[key][hpidx0[key]]]
+                self.parameterspacebykey[key] = [hpopt[key][self.hpidx0[key]]]
                 self.dims.append(1)
 
 
@@ -241,3 +252,50 @@ class HPoptimizer:
         for key in self.keys:
             print("", key, self.parameterspacebykey[key][self.current_idx[key]])
         print()
+
+
+class NoCoordinateToUpdate(Exception):
+    """Exception raised when the Searcher has no current coordinate at which to update the optimizer's score"""
+    def __init__(self, message="No current coordinate to update"):
+        self.message = message
+        super().__init__(self.message)
+
+
+class Searcher:
+    def __init__(self, fpath_hp, step_carefully=False):
+        self.optimizer = HPoptimizer(fpath_hp, step_carefully=False)
+        self.sc = SearcherCoordinate(self, None)
+    def __iter__(self):
+        return self
+    def __next__(self):
+        self.sc = SearcherCoordinate(self, self.optimizer.get_next_neighbouring_unscored_coordinate())
+        if self.sc.index is None:
+            self.optimizer.step() #this will NOT set optimizer.optimized = True if we are stepping to the optimal coordinate for the first time
+            if self.optimizer.optimized:
+                raise StopIteration
+            return self.__next__()
+
+        return self.sc
+
+    def get_optimal_pdict(self):
+        if self.optimizer.optimized:
+            return self.optimizer.get_parameters(self.optimizer.current_idx), self.optimizer.get_score(self.optimizer.current_idx)
+        else:
+            return None, None
+
+class SearcherCoordinate:
+    def __init__(self, searcher : Searcher, index):
+        self.searcher = searcher
+        self.index = index
+
+    def update(self, score):
+        if self.index is None:
+            raise NoCoordinateToUpdate
+        else:
+            self.searcher.optimizer.update_score(self.index, score)
+
+    def get_idx(self):
+        return self.index
+
+    def get_pdict(self):
+        return self.searcher.optimizer.get_parameters(self.index)

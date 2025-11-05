@@ -1,7 +1,6 @@
 import random
 import gridsearch
 from importlib.resources import files
-from contextlib import ExitStack
 from pathlib import Path
 random.seed(9100)
 filein_hp = "hyperparameters_test.json"
@@ -27,7 +26,7 @@ for key in optimalidxs.keys():
 print()
 
 
-def testscore(testcoordinate, optimalidxs):
+def getscore(testcoordinate, optimalidxs):
     score = 0
     for key in testcoordinate.keys():
         score += abs(testcoordinate[key] - optimalidxs[key])
@@ -40,12 +39,17 @@ while not hpoptimizer.optimized:
     while neighbouring_unscored_coordinate is not None:
         # parameters = hpoptimizer.get_parameters(neighbouring_unscored_coordinate)
 
-        score = testscore(neighbouring_unscored_coordinate, optimalidxs)
+        score = getscore(neighbouring_unscored_coordinate, optimalidxs)
 
         hpoptimizer.update_score(neighbouring_unscored_coordinate, score)
         neighbouring_unscored_coordinate = hpoptimizer.get_next_neighbouring_unscored_coordinate()
 
     hpoptimizer.step()
+
+
+print("ending coordinate, score:")
+print(hpoptimizer.current_idx)
+print(hpoptimizer.get_score(hpoptimizer.current_idx))
 
 success = True
 for key in optimalidxs.keys():
